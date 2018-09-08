@@ -100,14 +100,14 @@ if __name__ == '__main__':
     connectionDict = dict(host='localhost',
                           port=3306,
                           user='root',
-                          password='oychao',
-                          db='wechat',
+                          password='mysql',
+                          db='wechatMamage',
                           charset='utf8',
                           )
     mysqlHelper = MysqlHelper(connectionDict)
-    # mysqlHelper.insertOne('users', nickName='oychao', userType=0)
-    # mysqlHelper.insertOne('users', nickName='Cino.', userType=3)
-    result = mysqlHelper.getOne('users', column='nickName', value='oychao')
+    # mysqlHelper.insertOne('users', nickName='admin', userType=0)
+    # mysqlHelper.insertOne('users', nickName='user.', userType=3)
+    result = mysqlHelper.getOne('users', column='nickName', value='admin')
     print('getOne:', result)
     result = mysqlHelper.getAll('users', 'nickName', 'userType')
     print('getAll:', result)

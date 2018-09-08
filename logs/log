@@ -1,0 +1,10 @@
+INFO login.py:44 Getting uuid of QR code.
+INFO login.py:47 Downloading QR code.
+INFO login.py:50 Please scan the QR code to log in.
+INFO login.py:44 Getting uuid of QR code.
+INFO login.py:47 Downloading QR code.
+INFO login.py:50 Please scan the QR code to log in.
+INFO login.py:60 Please press confirm on your phone.
+INFO login.py:70 Loading the contact, this may take a little while.
+INFO register.py:85 Start auto replying.
+INFO register.py:85 Start auto replying.

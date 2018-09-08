@@ -4,7 +4,7 @@ infoTypes = ['send', 'recv', 'sys', 'cmd', 'err']
 statuses = ['success', 'fail']
 
 
-def logging(path, me, infoType=None, other=None, status=None, info=None):
+def myLogging(path, me, infoType=None, other=None, status=None, info=None):
     output = '[%s][%s][%s][%s][%s]：%s' % (
         datetime.datetime.now(), me, infoType, other, status, info)
     with open(path, 'a') as logFile:
@@ -26,4 +26,4 @@ if __name__ == '__main__':
     infoType = 'send'
     other = 'system'
     info = '测试一下'
-    logging(path, me, infoType, other, info)
+    myLogging(path, me, infoType, other, info)

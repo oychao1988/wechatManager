@@ -10,8 +10,8 @@ import pyecharts
 import jieba
 import re
 
-from wechatManager.storage import MysqlHelper
-from wechatManager.log import logging
+from wechatManager.models import MysqlHelper
+from wechatManager.log import myLogging
 from wechatManager.plugins import SchemeTimerThead
 from wechatManager import CONFIG
 
@@ -143,104 +143,104 @@ class User(object):
 # TODO 完善管理员指令
 def tips(self):  # 提示命令
     cmd = 'tips'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     try:
         self.instance.send('操作指令：\n' + str(self.cmds))
         self.instance.send('远程操作指令：\n' + str(self.remoteCmds))
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
     except Exception as reason:
-        logging(self.errFile, self.nickName, infoType='err',other=cmd, info=reason)
+        myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
 
 
 def addUser(self, nickName, userType):  # 添加用户
     cmd = 'addUser-%s-%s' % (nickName, userType)
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     try:
         userType = int(userType)
     except TypeError as reason:
         self.instance.send('用户类型输入错误')
-        logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+        myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
         return
     if self.userType < userType:
         if self.mysqlHelper.getOne('users', column='nickName', value=nickName):
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='当前用户已存在')
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='当前用户已存在')
             self.instance.send('当前用户已存在')
             return
         else:
             if nickName not in [each['NickName'] for each in self.frdInfoList]:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info='当前用户不在您的好友名单中')
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='当前用户不在您的好友名单中')
                 self.instance.send('当前用户不在您的好友名单中')
                 return
             if userType not in CONFIG.userTypes:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info='用户类型输入错误')
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='用户类型输入错误')
                 self.instance.send('用户类型输入错误')
                 return
             try:
                 self.mysqlHelper.insertOne('users', nickName=nickName, userType=userType)
                 self.setDefault(nickName, userType)
 
-                logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd, status='success', info='成功添加新用户：%s' % nickName)
+                myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd, status='success', info='成功添加新用户：%s' % nickName)
                 self.instance.send('成功添加新用户：%s' % nickName)
                 return
             except Exception as reason:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
                 self.instance.send('%s' % str(reason))
                 return
     else:
-        logging(self.errFile, self.nickName, infoType='err', other=cmd, info='您的权限不足')
+        myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='您的权限不足')
         self.instance.send('您的权限不足')
 
 
 def delUser(self, nickName):  # 删除用户
     cmd = 'delUser-%s' % nickName
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     try:
         if self.mysqlHelper.getOne('users', 'nickName', nickName):
             if nickName in onlineDict:
                 del onlineDict[nickName]
             self.mysqlHelper.delete('users', 'nickName', nickName)
-            logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd, status='success', info='成功删除用户:%s' % nickName)
+            myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd, status='success', info='成功删除用户:%s' % nickName)
             self.instance.send('成功删除用户:%s' % (nickName))
             return
     except Exception as reason:
-        logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+        myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
         self.instance.send('删除用户失败:%s' % (nickName), reason)
 
 
 def remoteLogin(self, frdNickName):  # 远程登录
     cmd = 'remoteLogin-%s' % frdNickName
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     user = self.mysqlHelper.getOne('users', 'nickName', frdNickName)
     frdUserName = self.instance.search_friends(name=frdNickName)[0]['UserName']
     if user:
         if (frdNickName in onlineDict.keys()) and onlineDict[frdNickName].instance.alive:
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='该用户已成功登录')
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='该用户已成功登录')
             self.instance.send('您已成功登录！', toUserName=frdUserName)
         else:
             try:
                 del onlineDict[frdNickName]
             except Exception as reason:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
             onlineDict[frdNickName] = User(frdNickName)
             qrPath = os.path.dirname(os.path.abspath(__file__)) + '/users/%s/QR.png' % frdNickName
             if os.path.exists(qrPath): os.remove(qrPath)
             onlineDict[frdNickName].loading = True
             for i in range(30):
                 if onlineDict[frdNickName].instance.alive:
-                    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+                    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
                     self.instance.send('登录成功', toUserName=frdUserName)
                     return
                 if os.path.exists(qrPath):
                     self.instance.send_image(qrPath, toUserName=frdUserName)
                     self.instance.send('请扫描二维码登录，或在手机上确认登录', toUserName=frdUserName)
-                    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd, status='success', info='二维码发送成功，收件人：%s' % frdNickName)
+                    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd, status='success', info='二维码发送成功，收件人：%s' % frdNickName)
                     return
                 time.sleep(1)
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='连接失败:%s' % frdNickName)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='连接失败:%s' % frdNickName)
             self.instance.send('连接超时，请稍后重试', toUserName=frdUserName)
             return
     else:
-        logging(self.errFile, self.nickName, infoType='err', other=cmd, info='该用户还未注册:%s' % frdNickName)
+        myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='该用户还未注册:%s' % frdNickName)
         self.instance.send('该用户还未注册:%s' % frdNickName, toUserName=frdUserName)
         return
 
@@ -248,7 +248,7 @@ def remoteLogin(self, frdNickName):  # 远程登录
 def addReply(self, nickName, chatroom=None):  # 添加自动回复成员
     if chatroom:  #  添加群
         cmd = 'addReply %s chatroom' % nickName
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         chatroomList = self.getChatrooms()
         if nickName in [each['NickName'] for each in chatroomList]:
             memberList = self.getChatroomMembers(nickName)['MemberList']
@@ -259,42 +259,42 @@ def addReply(self, nickName, chatroom=None):  # 添加自动回复成员
             if friendsInChatroom:
                 self.autoReplyGroup.extend(friendsInChatroom)
                 self.mysqlHelper.update('users', 'autoReplyGroup', self.separator.join(self.autoReplyGroup), 'nickName', self.nickName)
-                logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+                myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
                 self.instance.send('成功！群[%s]中的好友成功加入自动回复名单' % nickName, toUserName=self.userName)
             else:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info='群[%s]中的好友已经在自动回复名单中' % nickName)
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='群[%s]中的好友已经在自动回复名单中' % nickName)
                 self.instance.send('失败！群[%s]中的好友已经在自动回复名单中' % nickName, toUserName=self.userName)
         else:
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='[%s]不在您的群名单中' % nickName)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='[%s]不在您的群名单中' % nickName)
             self.instance.send('失败！[%s]不在您的群名单中' % nickName, toUserName=self.userName)
     else:
         cmd = 'addReply %s' % nickName
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         if nickName in [each['NickName'] for each in self.frdInfoList]:
             if nickName not in self.autoReplyGroup:  # 添加指定好友
                 self.autoReplyGroup.append(nickName)
                 self.mysqlHelper.update('users', 'autoReplyGroup', self.separator.join(self.autoReplyGroup), 'nickName', self.nickName)
-                logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+                myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
                 self.instance.send('成功！好友[%s]成功加入自动回复名单' % nickName, toUserName=self.userName)
             else:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info='好友[%s]已经在自动回复名单中' % nickName)
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='好友[%s]已经在自动回复名单中' % nickName)
                 self.instance.send('失败！好友[%s]已经在自动回复名单中' % nickName, toUserName=self.userName)
         elif nickName == 'all':  # 添加所有好友
             self.autoReplyGroup.extend([each['NickName'] for each in self.frdInfoList])
             self.autoReplyGroup = list(set(self.autoReplyGroup))
             self.mysqlHelper.update('users', 'autoReplyGroup', self.separator.join(self.autoReplyGroup), 'nickName',
                                     self.nickName)
-            logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+            myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
             self.instance.send('成功！[所有好友]成功加入自动回复名单', toUserName=self.userName)
         else:  # 错误指令
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='[%s]不在您的好友名单中' % nickName)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='[%s]不在您的好友名单中' % nickName)
             self.instance.send('失败！[%s]不在您的好友名单中' % nickName, toUserName=self.userName)
 
 
 def delReply(self, nickName, chatroom=None):  # 删除自动回复成员
     if chatroom:
         cmd = 'delReply %s chatroom' % nickName
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         chatroomList = self.getChatrooms()
         if nickName in [each['NickName'] for each in chatroomList]:
             memberList = self.getChatroomMembers(nickName)['MemberList']
@@ -306,85 +306,85 @@ def delReply(self, nickName, chatroom=None):  # 删除自动回复成员
                 self.autoReplyGroup = list(set(friendsInChatroom)^set(self.autoReplyGroup))
                 self.mysqlHelper.update('users', 'autoReplyGroup', self.separator.join(self.autoReplyGroup), 'nickName',
                                         self.nickName)
-                logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+                myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
                 self.instance.send('成功！群[%s]中的好友成功加入自动回复名单' % nickName, toUserName=self.userName)
             else:
-                logging(self.errFile, self.nickName, infoType='err', other=cmd, info='群[%s]中的好友不在自动回复名单中' % nickName)
+                myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='群[%s]中的好友不在自动回复名单中' % nickName)
                 self.instance.send('失败！群[%s]中的好友不在自动回复名单中' % nickName, toUserName=self.userName)
         else:
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='[%s]不在您的群名单中' % nickName)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='[%s]不在您的群名单中' % nickName)
             self.instance.send('失败！[%s]不在您的群名单中' % nickName, toUserName=self.userName)
     else:
         cmd = 'delReply %s' % nickName
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         if nickName in self.autoReplyGroup:  # 删除指定成员
             self.autoReplyGroup.remove(nickName)
             self.mysqlHelper.update('users', 'autoReplyGroup', self.separator.join(self.autoReplyGroup), 'nickName', self.nickName)
             self.instance.send('成功！好友[%s]从自动回复名单中删除' % nickName, toUserName=self.userName)
-            logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+            myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
         elif nickName == 'all':  # 删除所有成员
             self.autoReplyGroup = []
             self.mysqlHelper.update('users', 'autoReplyGroup', self.separator.join(self.autoReplyGroup), 'nickName',
                                     self.nickName)
             self.instance.send('成功！[所有好友]从自动回复名单中删除', toUserName=self.userName)
-            logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+            myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
         else:  # 错误指令
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info='好友[%s]不在自动回复名单中' % nickName)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info='好友[%s]不在自动回复名单中' % nickName)
             self.instance.send('失败！好友[%s]不在自动回复名单中' % nickName, toUserName=self.userName)
 
 
 def autoReplyOn(self):  # 开启自动回复
     cmd = 'autoReplyOn'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     self.autoReply = 1
     self.mysqlHelper.update('users', 'autoReply', self.autoReply, 'nickName', self.nickName)
     self.instance.send('提示：已开启自动回复', toUserName=self.userName)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def autoReplyOff(self):  # 关闭自动回复
     cmd = 'autoReplyOff'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     self.autoReply = 0
     self.mysqlHelper.update('users', 'autoReply', self.autoReply, 'nickName', self.nickName)
     self.instance.send('提示：已关闭自动回复', toUserName=self.userName)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def getUserDict(self):
     cmd = 'getUserDict'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     usersInfo = [str(each) for each in self.mysqlHelper.getAll('users', 'nickName', 'userType')]
     reply = '当前注册用户：\n' + '\n'.join(usersInfo)
     self.instance.send(reply, toUserName=self.userName)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def userOnline(self):  # 获取当前在线用户
     cmd = 'userOnline'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     usersInfo = [str(each) for each in onlineDict.keys()]
     reply = '当前在线用户：\n' + '\n'.join(usersInfo)
     self.instance.send(reply, toUserName=self.userName)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def fileHelperOn(self):
     cmd = 'fileHelperOn'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     self.filehelper = 1
     self.mysqlHelper.update('users', 'filehelper', self.filehelper, 'nickName', self.nickName)
     self.instance.send('提示：文件传输助手已开启')
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def fileHelperOff(self):
     cmd = 'fileHelperOff'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     self.filehelper = 0
     self.mysqlHelper.update('users', 'filehelper', self.filehelper, 'nickName', self.nickName)
     self.instance.send('提示：文件传输助手已关闭')
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 def autoSending(self):
     pass
@@ -395,17 +395,17 @@ def addTimerTask(self):
 # TODO 可查找属性值放入config，由config配置
 def getAttr(self, nickName, attr=None):  # 获取属性值
     cmd = 'getAttr-%s-%s' % (nickName, attr)
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     if attr:
         try:
             if nickName in onlineDict.keys():
                 value = getattr(onlineDict[nickName], attr)
             else:
                 value = self.mysqlHelper.getOne('users', 'nickName', nickName)[attr]
-            logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+            myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
             self.instance.send('%s.%s = %s' % (nickName, attr, value))
         except Exception as reason:
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
             self.instance.send('%s.%s属性不存在' % (nickName, attr))
     else:
         try:
@@ -445,7 +445,7 @@ def getAttr(self, nickName, attr=None):  # 获取属性值
                                             autoReplyGroup)
             self.instance.send(info, toUserName=self.userName)
         except Exception as reason:
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
 
 
 # TODO 好友列表在变动后自动更新
@@ -500,18 +500,18 @@ def mfRatio(self, chatroom=None):  # 男女比例
     path = self.savedir + 'mfRatio.html'
     if chatroom:
         cmd = 'mfRatio %s' % chatroom
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         try:
             chatroom == self.instance.search_chatrooms(name=chatroom)[0]['NickName']
         except Exception as reason:
             self.instance.send('在您的通讯录中没有找到该群[%s]' % chatroom)
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
             return
         memberList = self.getChatroomMembers(chatroom)['MemberList']
         subtitle = self.nickName + ':' + chatroom
     else:
         cmd = 'mfRatio'
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         memberList = self.frdInfoList[1:]
         subtitle = self.nickName
     male = len([1 for each in memberList if each['Sex']==1])
@@ -523,26 +523,26 @@ def mfRatio(self, chatroom=None):  # 男女比例
     pie.render(path)
     self.instance.send('@fil@%s' % path)
     os.remove(path)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def signatureCloud(self, chatroom=None):  # 签名词云
     path = self.savedir + 'signatureCloud.html'
     if chatroom:
         cmd = 'signaturCloud %s' % chatroom
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         try:
             chatroom == self.instance.search_chatrooms(name=chatroom)[0]['NickName']
         except Exception as reason:
             self.instance.send('在您的通讯录中没有找到该群[%s]' % chatroom)
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
             return
         memberList = self.getChatroomMembers(chatroom)['MemberList']
         sigList = [each['Signature'] for each in memberList]
         subtitle = self.nickName + ':' +  chatroom
     else:
         cmd = 'signaturCloud'
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         sigList = [each['Signature'] for each in self.frdInfoList]
         subtitle = self.nickName
 
@@ -557,25 +557,25 @@ def signatureCloud(self, chatroom=None):  # 签名词云
     wordCloud.render(path)
     self.instance.send('@fil@%s' % path)
     os.remove(path)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def geoData(self, chatroom=None):
     path = self.savedir + 'geoData.html'
     if chatroom:
         cmd = 'geoData %s' % chatroom
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         try:
             chatroom == self.instance.search_chatrooms(name=chatroom)[0]['NickName']
         except Exception as reason:
             self.instance.send('在您的通讯录中没有找到该群[%s]' % chatroom)
-            logging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
+            myLogging(self.errFile, self.nickName, infoType='err', other=cmd, info=reason)
             return
         memberList = self.getChatroomMembers(chatroom)['MemberList']
         subtitle = self.nickName + ':' +  chatroom
     else:
         cmd = 'geoData'
-        logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
         memberList = [each['Signature'] for each in self.frdInfoList]
         subtitle = self.nickName
     cities = [each['City'] for each in memberList]
@@ -588,13 +588,13 @@ def geoData(self, chatroom=None):
     geo.render(path)
     self.instance.send('@fil@%s' % path)
     os.remove(path)
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 # TODO 查看多个群内的共同好友
 def friendInChatrooms(self, chatroom):
     cmd = 'friendInChatrooms'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     chatroomList = self.getChatrooms()
     chatroomList = [each['NickName'] for each in chatroomList]
     if chatroom in chatroomList:
@@ -605,10 +605,10 @@ def friendInChatrooms(self, chatroom):
         frdList = [each['NickName'] for each in self.frdInfoList]
         intersection = set(chatroomMembers) & set(frdList)
         reply = '与您在同在群[%s]的好友有%d个：\n%s' % (chatroom, len(intersection), str(intersection))
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
     else:
         reply = '失败！群[%s]不在您的群列表中！' % chatroom
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='fail', other=cmd, info='群[%s]不在您的群列表中！' % chatroom)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='fail', other=cmd, info='群[%s]不在您的群列表中！' % chatroom)
     self.instance.send(reply)
 
 
@@ -709,7 +709,7 @@ def lc(self):
     :return:
     """
     cmd = 'lc'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     print(datetime.datetime.now(), self.nickName, '成功登陆！')
     self.online  = True
     self.receiveMsg = True
@@ -726,16 +726,16 @@ def lc(self):
         os.remove(os.getcwd() + r'/users/%s/QR.png' % self.nickName)
     except Exception as reason:
         pass
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def ec(self):
     cmd = 'ec'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     self.logout()
     del onlineDict[self.nickName]
     print(datetime.datetime.now(), self.nickName, '成功退出！')
-    logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
 
 
 def login(self):
@@ -759,40 +759,40 @@ def run(self):
 
 def getFriends(self):
     cmd = 'getFriends'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     if self.online:
         frdInfoList = self.instance.get_friends(update=True)
         self.frdList = [each['NickName'] for each in frdInfoList]
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
         return frdInfoList
 
 
 def getChatrooms(self):
     cmd = 'getChatrooms'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     if self.online:
         chatroomList = self.instance.get_chatrooms(update=True)
         self.chatroomList = [each['NickName'] for each in chatroomList]
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
         return chatroomList
 
 
 def getChatroomMembers(self, nickName, detailedMember=True):
     cmd = 'getChatroomMembers'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     if self.online:
         chatroomUserName = self.instance.search_chatrooms(name=nickName)[0]['UserName']
         chatroomMembers = self.instance.update_chatroom(chatroomUserName, detailedMember=detailedMember)
         self.chatroomMembers = [each['NickName'] for each in chatroomMembers['MemberList']]
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='success', other=cmd)
         return chatroomMembers
 
 
 def getMps(self):
     cmd = 'getMps'
-    logging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
+    myLogging(self.cmdFile, self.nickName, infoType='cmd', other=cmd)
     if self.online:
-        logging(self.cmdFile, self.nickName, infoType='cmd', status='succes', other=cmd)
+        myLogging(self.cmdFile, self.nickName, infoType='cmd', status='succes', other=cmd)
         return self.instance.get_mps(update=True)
 
 
@@ -847,7 +847,7 @@ def msgProcess(self):
 
         # TODO （2）处理好友发来的消息
         elif msg['FromUserName'] in [each['UserName'] for each in self.frdInfoList[1:]]: # 来自好友的消息
-            logging(self.chatDir + '%s.txt' % msg['User']['NickName'], self.nickName, infoType='recv', other=msg['User']['NickName'], info=msg['Text'])
+            myLogging(self.chatDir + '%s.txt' % msg['User']['NickName'], self.nickName, infoType='recv', other=msg['User']['NickName'], info=msg['Text'])
             if (msg['Type'] == TEXT) and (msg['Text'][0] == '*'):  # 处理远程指令消息，以*开头
                 replyCmd(msg['Text'][1:], self.remoteCmds)
             else:
@@ -864,7 +864,7 @@ def msgProcess(self):
             try:
                 toNickName = self.instance.search_friends(userName=msg['ToUserName'])[0]['NickName']
                 print(toNickName)
-                logging(self.chatDir + '%s.txt' % toNickName, self.nickName, infoType='send', other=toNickName, info=msg['Text'])
+                myLogging(self.chatDir + '%s.txt' % toNickName, self.nickName, infoType='send', other=toNickName, info=msg['Text'])
             except Exception as reason:
                 print('Error: replyFriendChat, reason:', reason)
 
@@ -881,16 +881,16 @@ def msgProcess(self):
     @self.instance.msg_register([TEXT], isGroupChat=True)
     def replyGroupChat(msg):
         if msg['FromUserName'] == self.userName:  # 自己发送的群消息
-            logging(self.chatroomDir + '%s.txt' % msg['User']['NickName'], self.nickName, infoType='send', other=msg['ActualNickName'],
-                    info='[%s]' % msg['User']['NickName'] + msg['Text'])
+            myLogging(self.chatroomDir + '%s.txt' % msg['User']['NickName'], self.nickName, infoType='send', other=msg['ActualNickName'],
+                      info='[%s]' % msg['User']['NickName'] + msg['Text'])
         else:  # 接收的群消息
             if msg['isAt']:  # 当有人@我的
                 self.instance.send('谁在@我吖，我等会就来...', toUserName=msg['FromUserName'])
             try:
-                logging(self.chatroomDir + '%s.txt' % msg['User']['NickName'], self.nickName, infoType='recv', other=msg['ActualNickName'],
-                    info='[%s]' % msg['User']['NickName'] + msg['Text'])
+                myLogging(self.chatroomDir + '%s.txt' % msg['User']['NickName'], self.nickName, infoType='recv', other=msg['ActualNickName'],
+                          info='[%s]' % msg['User']['NickName'] + msg['Text'])
             except Exception as reason:
-                logging(self.errFile, self.nickName, infoType='err', info=reason)
+                myLogging(self.errFile, self.nickName, infoType='err', info=reason)
 
     @self.instance.msg_register([SYSTEM])
     def replySystemChat(msg):  # 处理系统消息
