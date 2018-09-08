@@ -1,0 +1,5 @@
+users/
+readme/
+.idea
+*.py[cod]
+city_coordinates.json
